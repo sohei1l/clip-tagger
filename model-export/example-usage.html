@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>clip-tagger Model Usage Example</title>
+    <script type="module">
+        import { CLAPProcessor } from './clapProcessor.js';
+        import { LocalClassifier } from './localClassifier.js';
+        
+        async function loadModel() {
+            const processor = new CLAPProcessor();
+            const classifier = new LocalClassifier();
+            
+            // Initialize
+            await processor.initialize();
+            classifier.loadModel();
+            
+            console.log('Model loaded successfully!');
+            console.log('Model stats:', classifier.getModelStats());
+        }
+        
+        // Load when page loads
+        loadModel();
+    </script>
+</head>
+<body>
+    <h1>clip-tagger Model</h1>
+    <p>Check the browser console for model loading status.</p>
+    <p>See the full demo at: <a href="https://huggingface.co/spaces/sohei1l/clip-tagger">clip-tagger Space</a></p>
+</body>
+</html>

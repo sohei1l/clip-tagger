@@ -47,6 +47,11 @@ Instantly tag any audio with AI that learns from your corrections. Upload files 
 - Sound effect libraries
 - Research datasets
 
+## 🔗 Links
+
+- **🚀 Live Demo**: [Hugging Face Space](https://huggingface.co/spaces/sohei1l/clip-tagger)
+- **📦 Model Repository**: [Hugging Face Model](https://huggingface.co/sohei1l/clip-tagger)
+
 ---
 
 *Powered by Transformers.js • Runs entirely in your browser*
