@@ -1,3 +1,13 @@
+---
+title: clip-tagger
+emoji: 🎵
+colorFrom: blue
+colorTo: purple
+sdk: static
+pinned: false
+license: mit
+---
+
 # 🎵 clip-tagger
 
 > Custom audio tagging in the browser using CLAP (Contrastive Language-Audio Pre-training)
