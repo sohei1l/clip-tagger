@@ -211,10 +211,31 @@ function App() {
   }
 
   const handleAddCustomTag = async () => {
-    if (!newTag.trim()) return
+    const trimmedTag = newTag.trim().toLowerCase()
+    
+    // Validation
+    if (!trimmedTag) {
+      setError('Please enter a tag name')
+      return
+    }
+    
+    if (trimmedTag.length < 2) {
+      setError('Tag must be at least 2 characters long')
+      return
+    }
+    
+    // Check if tag already exists
+    const existingTag = tags.find(tag => tag.label.toLowerCase() === trimmedTag)
+    if (existingTag) {
+      setError(`Tag "${trimmedTag}" already exists`)
+      return
+    }
+    
+    // Clear any previous errors
+    setError(null)
 
     const customTag = { 
-      label: newTag.trim(), 
+      label: trimmedTag, 
       confidence: 1.0, 
       userFeedback: 'custom',
       isCustom: true,
@@ -224,23 +245,29 @@ function App() {
     setTags(prev => [...prev, customTag])
     
     try {
-      await feedbackStoreRef.current.saveCustomTag(newTag.trim())
-      await feedbackStoreRef.current.saveTagFeedback(newTag.trim(), 'custom', audioHash)
+      if (feedbackStoreRef.current) {
+        await feedbackStoreRef.current.saveCustomTag(trimmedTag)
+        if (audioHash) {
+          await feedbackStoreRef.current.saveTagFeedback(trimmedTag, 'custom', audioHash)
+        }
+      }
       
       // Train local classifier on custom tag
       if (localClassifierRef.current && audioFeatures) {
         const simpleFeatures = localClassifierRef.current.extractSimpleFeatures(audioFeatures)
         localClassifierRef.current.trainOnFeedback(
           simpleFeatures,
-          newTag.trim(),
+          trimmedTag,
           'custom'
         )
         localClassifierRef.current.saveModel()
       }
       
       loadCustomTags()
+      console.log(`✅ Added custom tag: "${trimmedTag}"`)
     } catch (error) {
       console.error('Error saving custom tag:', error)
+      setError('Failed to save custom tag')
     }
 
     setNewTag('')

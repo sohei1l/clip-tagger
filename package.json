@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && cp -r dist/* . && git add . && git commit -m 'Deploy latest build' && git push origin master && git push hf master:main",
+    "deploy-github": "git add . && git commit -m 'Update source code' && git push origin master",
+    "deploy-hf": "npm run build && cp -r dist/* . && git add . && git commit -m 'Deploy to HF Spaces' && git push hf master:main",
+    "clean": "rm -rf dist node_modules",
+    "fresh": "npm run clean && npm install && npm run build"
   },
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
