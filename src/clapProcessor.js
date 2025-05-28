@@ -5,16 +5,17 @@ class CLAPProcessor {
     this.classifier = null;
     this.isLoaded = false;
     this.candidateLabels = [
-      'speech', 'music', 'singing', 'guitar', 'piano', 'drums', 'violin',
-      'trumpet', 'saxophone', 'flute', 'classical music', 'rock music',
-      'pop music', 'jazz', 'electronic music', 'ambient', 'nature sounds',
-      'rain', 'wind', 'ocean waves', 'birds chirping', 'dog barking',
-      'cat meowing', 'car engine', 'traffic', 'footsteps', 'door closing',
-      'applause', 'laughter', 'crying', 'coughing', 'sneezing',
-      'telephone ringing', 'alarm clock', 'typing', 'water running',
-      'fire crackling', 'thunder', 'helicopter', 'airplane', 'train',
-      'motorcycle', 'bell ringing', 'whistle', 'horn', 'siren',
-      'explosion', 'gunshot', 'silence', 'noise', 'distortion'
+      'speech', 'male voice', 'female voice', 'narration', 'reading aloud', 'conversation',
+      'music', 'singing', 'instrumental music', 'classical music', 'rock music', 'pop music', 
+      'jazz', 'electronic music', 'acoustic music', 'background music',
+      'guitar', 'piano', 'drums', 'violin', 'trumpet', 'saxophone', 'flute',
+      'nature sounds', 'rain', 'wind', 'ocean waves', 'birds chirping', 'water running',
+      'ambient sounds', 'room tone', 'background noise', 'white noise',
+      'animal sounds', 'dog barking', 'cat meowing', 'birds singing',
+      'mechanical sounds', 'car engine', 'traffic', 'airplane', 'train', 'motorcycle',
+      'household sounds', 'door closing', 'footsteps', 'typing', 'telephone ringing', 'alarm clock',
+      'human sounds', 'applause', 'laughter', 'crying', 'coughing', 'sneezing', 'breathing',
+      'silence', 'quiet', 'noise', 'distortion', 'static'
     ];
   }
 
@@ -22,7 +23,7 @@ class CLAPProcessor {
     if (this.isLoaded) return;
 
     try {
-      console.log('🔄 Loading CLAP pipeline...');
+      console.log('Loading CLAP pipeline...');
       
       this.classifier = await pipeline(
         'zero-shot-audio-classification',
@@ -30,7 +31,7 @@ class CLAPProcessor {
       );
       
       this.isLoaded = true;
-      console.log('✅ CLAP pipeline ready!');
+      console.log('CLAP pipeline ready!');
     } catch (error) {
       console.error('❌ CLAP initialization failed:', error);
       throw new Error(`CLAP loading failed: ${error.message}`);
@@ -57,12 +58,12 @@ class CLAPProcessor {
       // Run the classification - pass raw Float32Array and candidate labels as separate params
       const results = await this.classifier(rawAudio, this.candidateLabels);
       
-      console.log('🎯 Classification results:', results);
+      console.log('Classification results:', results);
       
       // Format results
       const formattedTags = this.formatResults(results);
       
-      console.log('📝 Final tags:', formattedTags);
+      console.log('Final tags:', formattedTags);
       return formattedTags;
       
     } catch (error) {
@@ -124,14 +125,14 @@ class CLAPProcessor {
   }
 
   async fileToAudioBuffer(file) {
-    console.log('📁 Decoding file:', file.name, `(${Math.round(file.size / 1024)}KB)`);
+    console.log('Decoding file:', file.name, `(${Math.round(file.size / 1024)}KB)`);
     
     try {
       const arrayBuffer = await file.arrayBuffer();
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
       
-      console.log('✅ File decoded successfully');
+      console.log('File decoded successfully');
       return audioBuffer;
     } catch (error) {
       console.error('❌ File decoding failed:', error);
