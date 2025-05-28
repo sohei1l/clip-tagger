@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import CLAPProcessor from './clapProcessor'
 import './App.css'
 
 function App() {
@@ -6,9 +7,11 @@ function App() {
   const [isRecording, setIsRecording] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [tags, setTags] = useState([])
+  const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
+  const clapProcessorRef = useRef(null)
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0]
@@ -66,16 +69,29 @@ function App() {
   const processAudio = async (file) => {
     setIsLoading(true)
     setTags([])
+    setError(null)
     
-    // Placeholder for CLAP processing
-    setTimeout(() => {
+    try {
+      if (!clapProcessorRef.current) {
+        clapProcessorRef.current = new CLAPProcessor()
+      }
+      
+      const audioBuffer = await clapProcessorRef.current.fileToAudioBuffer(file)
+      const generatedTags = await clapProcessorRef.current.processAudio(audioBuffer)
+      
+      setTags(generatedTags)
+    } catch (err) {
+      console.error('Error processing audio:', err)
+      setError('Failed to process audio. Using fallback tags.')
+      // Fallback tags
       setTags([
-        { label: 'speech', confidence: 0.85 },
-        { label: 'human voice', confidence: 0.78 },
-        { label: 'conversation', confidence: 0.62 }
+        { label: 'audio', confidence: 0.9 },
+        { label: 'sound', confidence: 0.8 },
+        { label: 'recording', confidence: 0.7 }
       ])
+    } finally {
       setIsLoading(false)
-    }, 2000)
+    }
   }
 
   return (
@@ -126,6 +142,12 @@ function App() {
         {isLoading && (
           <div className="loading">
             <p>🧠 Analyzing audio with CLAP model...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="error">
+            <p>⚠️ {error}</p>
           </div>
         )}
 

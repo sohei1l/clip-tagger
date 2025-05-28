@@ -89,6 +89,15 @@ header p {
   font-weight: 500;
 }
 
+.error {
+  margin: 2rem 0;
+  padding: 1rem;
+  background: rgba(255, 71, 87, 0.1);
+  border-radius: 8px;
+  color: #ff4757;
+  font-weight: 500;
+}
+
 .tags-section {
   margin: 2rem 0;
   text-align: left;
