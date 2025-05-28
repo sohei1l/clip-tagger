@@ -10,6 +10,8 @@ license: mit
 
 # 🎵 clip-tagger
 
+**🚀 [Live Demo](https://huggingface.co/spaces/sohei1l/clip-tagger) • 📦 [Model Repository](https://huggingface.co/sohei1l/clip-tagger)**
+
 > Custom audio tagging in the browser using CLAP (Contrastive Language-Audio Pre-training)
 
 Instantly tag any audio with AI that learns from your corrections. Upload files or record directly in your browser - everything runs locally, no servers needed.
@@ -47,10 +49,6 @@ Instantly tag any audio with AI that learns from your corrections. Upload files 
 - Sound effect libraries
 - Research datasets
 
-## 🔗 Links
-
-- **🚀 Live Demo**: [Hugging Face Space](https://huggingface.co/spaces/sohei1l/clip-tagger)
-- **📦 Model Repository**: [Hugging Face Model](https://huggingface.co/sohei1l/clip-tagger)
 
 ---
 
