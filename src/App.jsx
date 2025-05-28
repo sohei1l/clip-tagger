@@ -23,6 +23,9 @@ function App() {
 
   useEffect(() => {
     const initializeStore = async () => {
+      // Initialize CLAP processor once and reuse
+      clapProcessorRef.current = new CLAPProcessor()
+      
       feedbackStoreRef.current = new UserFeedbackStore()
       await feedbackStoreRef.current.initialize()
       
@@ -102,7 +105,9 @@ function App() {
     setError(null)
     
     try {
+      // CLAP processor should already be initialized in useEffect
       if (!clapProcessorRef.current) {
+        console.warn('CLAP processor not initialized, creating new instance')
         clapProcessorRef.current = new CLAPProcessor()
       }
       

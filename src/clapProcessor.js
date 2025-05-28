@@ -38,20 +38,24 @@ class CLAPProcessor {
   }
 
   async processAudio(audioBuffer) {
-    console.log('🎵 Processing audio...');
+    console.log('Processing audio...');
     
     if (!this.isLoaded) {
       await this.initialize();
     }
 
     try {
-      // Convert AudioBuffer to raw audio data
-      const audioData = this.convertAudioBuffer(audioBuffer);
+      // Convert AudioBuffer to raw audio data (Float32Array)
+      const rawAudio = this.convertAudioBuffer(audioBuffer);
       
-      console.log('🔍 Running classification...');
+      console.log('Running classification...');
+      console.log('Audio data type:', rawAudio.constructor.name, 'Length:', rawAudio.length);
+      console.log('Audio data sample:', rawAudio.slice(0, 5));
+      console.log('Is Float32Array?', rawAudio instanceof Float32Array);
+      console.log('Candidate labels:', this.candidateLabels.slice(0, 3));
       
-      // Run the classification
-      const results = await this.classifier(audioData, this.candidateLabels);
+      // Run the classification - pass raw Float32Array and candidate labels as separate params
+      const results = await this.classifier(rawAudio, this.candidateLabels);
       
       console.log('🎯 Classification results:', results);
       
@@ -74,16 +78,18 @@ class CLAPProcessor {
   }
 
   convertAudioBuffer(audioBuffer) {
-    console.log('🔧 Converting audio buffer:', {
+    console.log('Converting audio buffer:', {
       duration: audioBuffer.duration.toFixed(2) + 's',
       sampleRate: audioBuffer.sampleRate,
       channels: audioBuffer.numberOfChannels
     });
     
-    // Extract audio data
+    // Extract audio data as Float32Array
     let rawAudio;
     if (audioBuffer.numberOfChannels === 1) {
-      rawAudio = audioBuffer.getChannelData(0);
+      // Mono audio - copy to new Float32Array to ensure proper type
+      const channelData = audioBuffer.getChannelData(0);
+      rawAudio = new Float32Array(channelData);
     } else {
       // Convert stereo to mono by averaging
       const left = audioBuffer.getChannelData(0);
@@ -94,10 +100,8 @@ class CLAPProcessor {
       }
     }
     
-    return {
-      raw: rawAudio,
-      sampling_rate: audioBuffer.sampleRate
-    };
+    console.log('Converted to Float32Array, length:', rawAudio.length);
+    return rawAudio;
   }
 
   formatResults(results) {
