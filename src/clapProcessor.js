@@ -3,8 +3,8 @@ import { pipeline } from '@xenova/transformers';
 class CLAPProcessor {
   constructor() {
     this.classifier = null;
-    this.isInitialized = false;
-    this.defaultLabels = [
+    this.isLoaded = false;
+    this.candidateLabels = [
       'speech', 'music', 'singing', 'guitar', 'piano', 'drums', 'violin',
       'trumpet', 'saxophone', 'flute', 'classical music', 'rock music',
       'pop music', 'jazz', 'electronic music', 'ambient', 'nature sounds',
@@ -19,135 +19,119 @@ class CLAPProcessor {
   }
 
   async initialize() {
-    if (this.isInitialized) return;
+    if (this.isLoaded) return;
 
     try {
-      console.log('🔄 Loading CLAP model (this may take a moment)...');
+      console.log('🔄 Loading CLAP pipeline...');
       
-      // Create a zero-shot audio classification pipeline
       this.classifier = await pipeline(
         'zero-shot-audio-classification',
-        'Xenova/clap-htsat-unfused',
-        {
-          // Optional: specify device and other configs
-          device: 'webgpu', // fallback to cpu if webgpu not available
-        }
+        'Xenova/clap-htsat-unfused'
       );
       
-      this.isInitialized = true;
-      console.log('✅ CLAP model loaded successfully!');
+      this.isLoaded = true;
+      console.log('✅ CLAP pipeline ready!');
     } catch (error) {
-      console.error('❌ Failed to load CLAP model:', error);
-      throw new Error(`Failed to initialize CLAP model: ${error.message}`);
+      console.error('❌ CLAP initialization failed:', error);
+      throw new Error(`CLAP loading failed: ${error.message}`);
     }
   }
 
   async processAudio(audioBuffer) {
-    console.log('🎵 Starting audio processing...');
+    console.log('🎵 Processing audio...');
     
-    if (!this.isInitialized) {
+    if (!this.isLoaded) {
       await this.initialize();
     }
 
     try {
-      // Convert AudioBuffer to the format expected by the model
-      const audioData = this.extractAudioData(audioBuffer);
+      // Convert AudioBuffer to raw audio data
+      const audioData = this.convertAudioBuffer(audioBuffer);
       
-      console.log('🔍 Classifying audio with', this.defaultLabels.length, 'possible labels...');
+      console.log('🔍 Running classification...');
       
-      // Run zero-shot classification
-      const results = await this.classifier(audioData, this.defaultLabels);
+      // Run the classification
+      const results = await this.classifier(audioData, this.candidateLabels);
       
-      console.log('🎯 Raw CLAP results:', results);
+      console.log('🎯 Classification results:', results);
       
-      // Process and return top results
-      const processedTags = this.processResults(results);
-      console.log('📝 Processed tags:', processedTags);
+      // Format results
+      const formattedTags = this.formatResults(results);
       
-      return processedTags;
+      console.log('📝 Final tags:', formattedTags);
+      return formattedTags;
       
     } catch (error) {
-      console.error('❌ Error during audio processing:', error);
-      throw new Error(`Audio processing failed: ${error.message}`);
+      console.error('❌ Audio processing error:', error);
+      
+      // Return fallback tags with error info
+      return [
+        { label: 'audio', confidence: 0.9 },
+        { label: 'sound', confidence: 0.8 },
+        { label: 'unknown', confidence: 0.5 }
+      ];
     }
   }
 
-  extractAudioData(audioBuffer) {
+  convertAudioBuffer(audioBuffer) {
     console.log('🔧 Converting audio buffer:', {
-      duration: audioBuffer.duration,
+      duration: audioBuffer.duration.toFixed(2) + 's',
       sampleRate: audioBuffer.sampleRate,
       channels: audioBuffer.numberOfChannels
     });
     
-    // Get audio data - convert to mono if needed
-    let audioArray;
+    // Extract audio data
+    let rawAudio;
     if (audioBuffer.numberOfChannels === 1) {
-      audioArray = audioBuffer.getChannelData(0);
+      rawAudio = audioBuffer.getChannelData(0);
     } else {
-      // Average multiple channels to mono
-      const channel1 = audioBuffer.getChannelData(0);
-      const channel2 = audioBuffer.getChannelData(1);
-      audioArray = new Float32Array(channel1.length);
-      for (let i = 0; i < channel1.length; i++) {
-        audioArray[i] = (channel1[i] + channel2[i]) / 2;
+      // Convert stereo to mono by averaging
+      const left = audioBuffer.getChannelData(0);
+      const right = audioBuffer.getChannelData(1);
+      rawAudio = new Float32Array(left.length);
+      for (let i = 0; i < left.length; i++) {
+        rawAudio[i] = (left[i] + right[i]) / 2;
       }
     }
     
-    // Return in the format expected by transformers.js
     return {
-      raw: audioArray,
+      raw: rawAudio,
       sampling_rate: audioBuffer.sampleRate
     };
   }
 
-  processResults(results) {
-    // Ensure we have results and they're in the expected format
-    if (!results || !Array.isArray(results)) {
+  formatResults(results) {
+    if (!Array.isArray(results)) {
       console.warn('⚠️ Unexpected results format:', results);
-      return this.getFallbackTags();
+      return [
+        { label: 'audio', confidence: 0.9 },
+        { label: 'sound', confidence: 0.8 }
+      ];
     }
     
-    // Sort by confidence and take top 5
-    const sortedResults = results
+    // Sort by score and take top 5
+    return results
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-    
-    // Convert to our tag format
-    const tags = sortedResults.map(result => ({
-      label: result.label,
-      confidence: Math.max(0, Math.min(1, result.score)) // Clamp between 0 and 1
-    }));
-    
-    // Ensure we have at least some tags
-    if (tags.length === 0) {
-      return this.getFallbackTags();
-    }
-    
-    return tags;
+      .slice(0, 5)
+      .map(result => ({
+        label: result.label,
+        confidence: Math.max(0, Math.min(1, result.score))
+      }));
   }
 
-  getFallbackTags() {
-    return [
-      { label: 'audio', confidence: 0.9 },
-      { label: 'sound', confidence: 0.8 },
-      { label: 'recording', confidence: 0.7 }
-    ];
-  }
-
-  // Convert file to AudioBuffer
   async fileToAudioBuffer(file) {
-    console.log('📁 Processing file:', file.name, 'Size:', Math.round(file.size / 1024), 'KB');
+    console.log('📁 Decoding file:', file.name, `(${Math.round(file.size / 1024)}KB)`);
     
     try {
       const arrayBuffer = await file.arrayBuffer();
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
       
-      console.log('✅ Audio file decoded successfully');
+      console.log('✅ File decoded successfully');
       return audioBuffer;
     } catch (error) {
-      console.error('❌ Failed to decode audio file:', error);
-      throw new Error(`Failed to decode audio file: ${error.message}`);
+      console.error('❌ File decoding failed:', error);
+      throw new Error(`Audio decoding failed: ${error.message}`);
     }
   }
 }
