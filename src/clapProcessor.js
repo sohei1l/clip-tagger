@@ -1,9 +1,8 @@
-import { pipeline, AutoProcessor, ClapAudioModelWithProjection } from '@xenova/transformers';
+import { pipeline } from '@xenova/transformers';
 
 class CLAPProcessor {
   constructor() {
-    this.model = null;
-    this.processor = null;
+    this.pipeline = null;
     this.defaultLabels = [
       'speech', 'music', 'singing', 'guitar', 'piano', 'drums', 'violin',
       'trumpet', 'saxophone', 'flute', 'classical music', 'rock music',
@@ -19,13 +18,12 @@ class CLAPProcessor {
   }
 
   async initialize() {
-    if (this.model && this.processor) return;
+    if (this.pipeline) return;
 
     try {
-      // Load the CLAP model and processor
-      this.processor = await AutoProcessor.from_pretrained('Xenova/clap-htsat-unfused');
-      this.model = await ClapAudioModelWithProjection.from_pretrained('Xenova/clap-htsat-unfused');
-      
+      console.log('Loading CLAP model...');
+      // Use the pipeline API which is more stable
+      this.pipeline = await pipeline('zero-shot-audio-classification', 'Xenova/clap-htsat-unfused');
       console.log('CLAP model loaded successfully');
     } catch (error) {
       console.error('Failed to load CLAP model:', error);
@@ -34,27 +32,28 @@ class CLAPProcessor {
   }
 
   async processAudio(audioBuffer) {
-    if (!this.model || !this.processor) {
+    if (!this.pipeline) {
       await this.initialize();
     }
 
     try {
-      // Convert audio to the format expected by CLAP
+      // Convert audio to the format expected by the model
       const audio = await this.preprocessAudio(audioBuffer);
       
-      // Process audio through the model
-      const audioInputs = await this.processor(audio);
-      const audioFeatures = await this.model.get_audio_features(audioInputs);
+      console.log('Processing audio with CLAP...');
       
-      // Process text labels
-      const textInputs = await this.processor.text(this.defaultLabels);
-      const textFeatures = await this.model.get_text_features(textInputs);
+      // Use the pipeline for zero-shot classification
+      const results = await this.pipeline(audio, this.defaultLabels);
       
-      // Calculate similarities
-      const similarities = await this.calculateSimilarities(audioFeatures, textFeatures);
+      console.log('CLAP results:', results);
       
-      // Return top tags with confidence scores
-      return this.getTopTags(similarities, 5);
+      // Transform results to our format
+      const tags = results.slice(0, 5).map(result => ({
+        label: result.label,
+        confidence: result.score
+      }));
+      
+      return tags;
     } catch (error) {
       console.error('Error processing audio:', error);
       throw error;
@@ -62,89 +61,25 @@ class CLAPProcessor {
   }
 
   async preprocessAudio(audioBuffer) {
-    // Convert to mono if stereo
+    // Convert to mono and get raw audio data
     let audioData;
     if (audioBuffer.numberOfChannels > 1) {
-      audioData = new Float32Array(audioBuffer.length);
-      for (let i = 0; i < audioBuffer.length; i++) {
-        let sum = 0;
-        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-          sum += audioBuffer.getChannelData(channel)[i];
-        }
-        audioData[i] = sum / audioBuffer.numberOfChannels;
+      // Convert stereo to mono by averaging channels
+      const channel1 = audioBuffer.getChannelData(0);
+      const channel2 = audioBuffer.getChannelData(1);
+      audioData = new Float32Array(channel1.length);
+      for (let i = 0; i < channel1.length; i++) {
+        audioData[i] = (channel1[i] + channel2[i]) / 2;
       }
     } else {
       audioData = audioBuffer.getChannelData(0);
     }
 
-    // Resample to 48kHz if needed (CLAP expects 48kHz)
-    const targetSampleRate = 48000;
-    if (audioBuffer.sampleRate !== targetSampleRate) {
-      audioData = await this.resampleAudio(audioData, audioBuffer.sampleRate, targetSampleRate);
-    }
-
-    return audioData;
-  }
-
-  async resampleAudio(audioData, originalRate, targetRate) {
-    // Simple linear interpolation resampling
-    const ratio = originalRate / targetRate;
-    const newLength = Math.round(audioData.length / ratio);
-    const resampled = new Float32Array(newLength);
-    
-    for (let i = 0; i < newLength; i++) {
-      const originalIndex = i * ratio;
-      const indexFloor = Math.floor(originalIndex);
-      const indexCeil = Math.min(indexFloor + 1, audioData.length - 1);
-      const fraction = originalIndex - indexFloor;
-      
-      resampled[i] = audioData[indexFloor] * (1 - fraction) + audioData[indexCeil] * fraction;
-    }
-    
-    return resampled;
-  }
-
-  async calculateSimilarities(audioFeatures, textFeatures) {
-    // Calculate cosine similarity between audio and text features
-    const audioVector = audioFeatures.data;
-    const similarities = [];
-
-    for (let i = 0; i < this.defaultLabels.length; i++) {
-      const textVector = textFeatures.data.slice(
-        i * audioVector.length, 
-        (i + 1) * audioVector.length
-      );
-      
-      const similarity = this.cosineSimilarity(audioVector, textVector);
-      similarities.push(similarity);
-    }
-
-    return similarities;
-  }
-
-  cosineSimilarity(vecA, vecB) {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-  }
-
-  getTopTags(similarities, topK = 5) {
-    const tagged = this.defaultLabels.map((label, index) => ({
-      label,
-      confidence: Math.max(0, similarities[index]) // Ensure non-negative
-    }));
-
-    return tagged
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, topK);
+    // Return the audio data with sample rate info
+    return {
+      data: audioData,
+      sampling_rate: audioBuffer.sampleRate
+    };
   }
 
   // Convert file to AudioBuffer

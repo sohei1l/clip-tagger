@@ -109,8 +109,17 @@ function App() {
       const hash = await feedbackStoreRef.current.hashAudioFile(file)
       setAudioHash(hash)
       
+      console.log('Converting file to audio buffer...')
       const audioBuffer = await clapProcessorRef.current.fileToAudioBuffer(file)
+      console.log('Audio buffer created:', {
+        duration: audioBuffer.duration,
+        sampleRate: audioBuffer.sampleRate,
+        channels: audioBuffer.numberOfChannels
+      })
+      
+      console.log('Processing audio with CLAP...')
       const generatedTags = await clapProcessorRef.current.processAudio(audioBuffer)
+      console.log('Generated tags:', generatedTags)
       
       // Store basic audio info for later use
       const features = {
@@ -366,6 +375,9 @@ function App() {
         {isLoading && (
           <div className="loading">
             <p>🧠 Analyzing audio with CLAP model...</p>
+            <p style={{fontSize: '0.9em', opacity: 0.8}}>
+              {tags.length === 0 ? 'Loading model (~45MB)...' : 'Processing audio...'}
+            </p>
           </div>
         )}
 
