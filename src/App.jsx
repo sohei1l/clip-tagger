@@ -243,6 +243,81 @@ function App() {
     }
   }
 
+  const exportModel = async () => {
+    try {
+      const modelStats = localClassifierRef.current?.getModelStats()
+      const feedbackData = await feedbackStoreRef.current.getAudioFeedback()
+      const customTagsData = await feedbackStoreRef.current.getCustomTags()
+      
+      const exportData = {
+        modelStats,
+        feedbackData: feedbackData.slice(0, 50), // Limit for size
+        customTags: customTagsData,
+        exportDate: new Date().toISOString(),
+        version: '1.0'
+      }
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `clip-tagger-model-${Date.now()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting model:', error)
+      setError('Failed to export model')
+    }
+  }
+
+  const exportTags = () => {
+    if (tags.length === 0) return
+
+    const tagData = {
+      audioFile: audioFile?.name || 'recorded-audio',
+      audioHash,
+      timestamp: new Date().toISOString(),
+      tags: tags.map(tag => ({
+        label: tag.label,
+        confidence: tag.confidence,
+        source: tag.source || 'clap',
+        userFeedback: tag.userFeedback
+      }))
+    }
+
+    const blob = new Blob([JSON.stringify(tagData, null, 2)], {
+      type: 'application/json'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tags-${audioFile?.name || 'audio'}-${Date.now()}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const clearAllData = async () => {
+    if (confirm('Are you sure you want to clear all training data? This cannot be undone.')) {
+      try {
+        await feedbackStoreRef.current.clearAllData()
+        localClassifierRef.current?.clearModel()
+        setCustomTags([])
+        setTags([])
+        setAudioFile(null)
+        setError(null)
+      } catch (error) {
+        console.error('Error clearing data:', error)
+        setError('Failed to clear data')
+      }
+    }
+  }
+
   return (
     <div className="app">
       <header>
@@ -366,7 +441,43 @@ function App() {
             )}
           </div>
         )}
+
+        {(tags.length > 0 || customTags.length > 0) && (
+          <div className="export-section">
+            <h3>Export & Management</h3>
+            <div className="export-controls">
+              {tags.length > 0 && (
+                <button onClick={exportTags} className="export-btn">
+                  📁 Export Current Tags
+                </button>
+              )}
+              {localClassifierRef.current?.getModelStats().trainedTags > 0 && (
+                <button onClick={exportModel} className="export-btn">
+                  🧠 Export Trained Model
+                </button>
+              )}
+              <button onClick={clearAllData} className="clear-btn">
+                🗑️ Clear All Data
+              </button>
+            </div>
+            
+            {localClassifierRef.current && (
+              <div className="model-stats">
+                <p>Trained tags: {localClassifierRef.current.getModelStats().trainedTags}</p>
+                <p>Custom tags: {customTags.length}</p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
+      
+      <footer>
+        <p>
+          Powered by <a href="https://github.com/xenova/transformers.js" target="_blank" rel="noopener">Transformers.js</a> 
+          {' '} • CLAP model: <a href="https://huggingface.co/Xenova/clap-htsat-unfused" target="_blank" rel="noopener">Xenova/clap-htsat-unfused</a>
+          {' '} • Everything runs locally in your browser
+        </p>
+      </footer>
     </div>
   )
 }

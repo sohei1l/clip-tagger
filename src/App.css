@@ -261,6 +261,93 @@ header p {
   border-color: #646cff;
 }
 
+.export-section {
+  margin: 3rem 0 2rem 0;
+  padding: 2rem;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.export-section h3 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.export-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.export-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.export-btn:hover {
+  background: #2980b9;
+}
+
+.clear-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.clear-btn:hover {
+  background: #c0392b;
+}
+
+.model-stats {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.model-stats p {
+  margin: 0.25rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+footer {
+  margin-top: 3rem;
+  padding: 2rem 0 1rem 0;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+footer p {
+  margin: 0;
+  color: #888;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+footer a {
+  color: #646cff;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .app {
     padding: 1rem;
