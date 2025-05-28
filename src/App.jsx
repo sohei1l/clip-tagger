@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import CLAPProcessor from './clapProcessor'
 import UserFeedbackStore from './userFeedbackStore'
+import LocalClassifier from './localClassifier'
 import './App.css'
 
 function App() {
@@ -18,11 +19,16 @@ function App() {
   const chunksRef = useRef([])
   const clapProcessorRef = useRef(null)
   const feedbackStoreRef = useRef(null)
+  const localClassifierRef = useRef(null)
 
   useEffect(() => {
     const initializeStore = async () => {
       feedbackStoreRef.current = new UserFeedbackStore()
       await feedbackStoreRef.current.initialize()
+      
+      localClassifierRef.current = new LocalClassifier()
+      localClassifierRef.current.loadModel()
+      
       loadCustomTags()
     }
     initializeStore()
@@ -107,13 +113,53 @@ function App() {
       const generatedTags = await clapProcessorRef.current.processAudio(audioBuffer)
       
       // Store basic audio info for later use
-      setAudioFeatures({
+      const features = {
         sampleRate: audioBuffer.sampleRate,
         duration: audioBuffer.duration,
         numberOfChannels: audioBuffer.numberOfChannels
-      })
+      }
+      setAudioFeatures(features)
       
-      setTags(generatedTags.map(tag => ({ ...tag, userFeedback: null })))
+      // Apply local classifier adjustments
+      let finalTags = generatedTags.map(tag => ({ ...tag, userFeedback: null }))
+      
+      if (localClassifierRef.current) {
+        const simpleFeatures = localClassifierRef.current.extractSimpleFeatures(features)
+        const allPossibleTags = [...generatedTags.map(t => t.label), ...customTags]
+        const localPredictions = localClassifierRef.current.predictAll(simpleFeatures, allPossibleTags)
+        
+        // Merge CLAP predictions with local classifier predictions
+        const mergedTags = new Map()
+        
+        // Add CLAP tags
+        for (const tag of generatedTags) {
+          mergedTags.set(tag.label, { ...tag, source: 'clap' })
+        }
+        
+        // Add or adjust with local predictions
+        for (const pred of localPredictions) {
+          if (mergedTags.has(pred.tag)) {
+            // Blend CLAP and local predictions
+            const existing = mergedTags.get(pred.tag)
+            existing.confidence = (existing.confidence + pred.confidence) / 2
+            existing.source = 'blended'
+          } else if (pred.confidence > 0.6) {
+            // Add high-confidence local predictions
+            mergedTags.set(pred.tag, {
+              label: pred.tag,
+              confidence: pred.confidence,
+              source: 'local',
+              userFeedback: null
+            })
+          }
+        }
+        
+        finalTags = Array.from(mergedTags.values())
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 8) // Keep top 8 tags
+      }
+      
+      setTags(finalTags)
     } catch (err) {
       console.error('Error processing audio:', err)
       setError('Failed to process audio. Using fallback tags.')
@@ -139,6 +185,17 @@ function App() {
         feedback,
         audioHash
       )
+
+      // Train local classifier on this feedback
+      if (localClassifierRef.current && audioFeatures) {
+        const simpleFeatures = localClassifierRef.current.extractSimpleFeatures(audioFeatures)
+        localClassifierRef.current.trainOnFeedback(
+          simpleFeatures,
+          updatedTags[tagIndex].label,
+          feedback
+        )
+        localClassifierRef.current.saveModel()
+      }
     } catch (error) {
       console.error('Error saving tag feedback:', error)
     }
@@ -151,7 +208,8 @@ function App() {
       label: newTag.trim(), 
       confidence: 1.0, 
       userFeedback: 'custom',
-      isCustom: true 
+      isCustom: true,
+      source: 'custom'
     }
 
     setTags(prev => [...prev, customTag])
@@ -159,6 +217,18 @@ function App() {
     try {
       await feedbackStoreRef.current.saveCustomTag(newTag.trim())
       await feedbackStoreRef.current.saveTagFeedback(newTag.trim(), 'custom', audioHash)
+      
+      // Train local classifier on custom tag
+      if (localClassifierRef.current && audioFeatures) {
+        const simpleFeatures = localClassifierRef.current.extractSimpleFeatures(audioFeatures)
+        localClassifierRef.current.trainOnFeedback(
+          simpleFeatures,
+          newTag.trim(),
+          'custom'
+        )
+        localClassifierRef.current.saveModel()
+      }
+      
       loadCustomTags()
     } catch (error) {
       console.error('Error saving custom tag:', error)
@@ -236,8 +306,11 @@ function App() {
             <div className="tags">
               {tags.map((tag, index) => (
                 <div key={index} className={`tag-item ${tag.userFeedback ? 'has-feedback' : ''}`}>
-                  <span className={`tag ${tag.isCustom ? 'custom' : ''} ${tag.userFeedback === 'negative' ? 'negative' : ''}`}>
+                  <span className={`tag ${tag.isCustom ? 'custom' : ''} ${tag.userFeedback === 'negative' ? 'negative' : ''} ${tag.source || 'clap'}`}>
                     {tag.label} ({Math.round(tag.confidence * 100)}%)
+                    {tag.source === 'local' && <span className="source-indicator">🧠</span>}
+                    {tag.source === 'blended' && <span className="source-indicator">⚡</span>}
+                    {tag.source === 'custom' && <span className="source-indicator">✨</span>}
                   </span>
                   {!tag.isCustom && (
                     <div className="tag-controls">

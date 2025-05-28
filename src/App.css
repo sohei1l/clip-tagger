@@ -147,6 +147,19 @@ header p {
   opacity: 0.6;
 }
 
+.tag.local {
+  background: linear-gradient(45deg, #9b59b6, #8e44ad);
+}
+
+.tag.blended {
+  background: linear-gradient(45deg, #f39c12, #e67e22);
+}
+
+.source-indicator {
+  margin-left: 0.5rem;
+  font-size: 0.8em;
+}
+
 .tag-controls {
   display: flex;
   gap: 0.25rem;
